@@ -27,7 +27,10 @@ long int lat;  // GPS latitude in degree decimal multiplied by 100000
 long int lon;  // GPS latitude in degree decimal multiplied by 100000
 long int latDestination = 33.423933 * 100000;     // reference destination
 long int lonDestination = -111.939585 * 100000;   // reference destination
+long int diff_lat = 0;
+long int diff_lon = 0;
 float Bearing = 0;                // bearing angle to destination
+int off_angle = 0;
 int localkey = 0;                 // variable for keypad
 
 void setup() {
@@ -116,12 +119,27 @@ ISR(TIMER4_OVF_vect) { // This function will be called every 1 second
   sei();        //   set interrupt flag // don't change this
   TCNT4  = 336; //   re-initialize timer4's value
   ReadGPS();    //   read GPS data
+  lcd.print("angle: ");
+  lcd.println(off_angle);
 }
+
+ISR(TIMER1_OVF_vect) {        // This function will be called every 0.1 second
+  sei();                  // set interrupt flag // don't change this
+  TCNT1  = 59016;         // reinitialize the timer1's value
+  ReadHeading();          // read heading
+  CalculateBearing();     // calc bearing
+  CalculateSteering();    // calc steering
+  CalculateDistance();    // calc distance
+  Actuate();              // Actuate
+}
+
 
 void ReadGPS() {
   // read from GPS module and update the current position
       if (GPS.newNMEAreceived())
           GPS.parse(GPS.lastNMEA()); //Parse GPS Sentences
+
+      while( ! GPS.fix) //wait for fix before attempting read
           
       if (GPS.fix) { //if at least five fixed satellites are found
            float raw_lat = GPS.latitude; 
@@ -145,11 +163,9 @@ void ReadHeading() { // Output: HEADING
 
 void CalculateBearing() {
   // calculate bearing angle based on current and destination locations (GPS coordinates)
-  int diff_lat = latDestination - lat;
-  int diff_lon = lonDestination - lon;
+  diff_lat = latDestination - lat;
+  diff_lon = lonDestination - lon;
   Bearing = atan2(diff_lat, diff_lon);
-  Serial.print("Bearing: ");
-  Serial.println(Bearing);
 }
 
 void CalculateSteering() { // Input: HEADING // Output: STEERANGLE// Calculate the steering angle according to the referece heading and actual heading
@@ -159,6 +175,8 @@ void CalculateSteering() { // Input: HEADING // Output: STEERANGLE// Calculate t
   while(dispAngle >360)
     dispAngle -= 360;  
 
+  off_angle = dispAngle;
+
   //left:0 right:180 neutral: 90
   //dispAngle 0->170  ->   0 angle = Left(0) servo, 180 angle = Neutral(90)
   //dispAngle 190->360  -> 180 angle = Neutral(90),  360 angle = Right(180)
@@ -167,22 +185,14 @@ void CalculateSteering() { // Input: HEADING // Output: STEERANGLE// Calculate t
 
 void CalculateDistance() {
   // calculate distance to destination based on current and destination coordinates
+  long distancebig = sqrt(diff_lat*diff_lat + diff_lon*diff_lon);
+  
 }
 
 void Actuate() {
   // set car's direction and speed
+  myservo.write(STEER_ANGLE);
 }
-
-ISR(TIMER1_OVF_vect) {        // This function will be called every 0.1 second
-  sei();                  // set interrupt flag // don't change this
-  TCNT1  = 59016;         // reinitialize the timer1's value
-  ReadHeading();          // read heading
-  CalculateBearing();     // calc bearing
-  CalculateSteering();    // calc steering
-  CalculateDistance();    // calc distance
-  Actuate();              // Actuate
-}
-
 
 void printHeadingOnLCD() {
 
