@@ -18,7 +18,7 @@ LiquidCrystal lcd( 8, 9, 4, 5, 6, 7); // define lcd pins use these default value
 #define GPSECHO  false
 
 // Global variables that are changed across functions
-int STEERANGLE = 90;       // servo initial angle (range is 0:180)
+int STEER_ANGLE = 90;       // servo initial angle (range is 0:180)
 float HEADING = 0;  // heading
 boolean usingInterrupt = false;
 int carSpeedPin = 2;      // pin for DC motor (PWM for motor driver)
@@ -145,10 +145,24 @@ void ReadHeading() { // Output: HEADING
 
 void CalculateBearing() {
   // calculate bearing angle based on current and destination locations (GPS coordinates)
+  int diff_lat = latDestination - lat;
+  int diff_lon = lonDestination - lon;
+  Bearing = atan2(diff_lat, diff_lon);
+  Serial.print("Bearing: ");
+  Serial.println(Bearing);
 }
 
-void CalculateSteering() { // Input: HEADING // Output: STEERANGLE
-  // calculate steering angle based on heading and bearing
+void CalculateSteering() { // Input: HEADING // Output: STEERANGLE// Calculate the steering angle according to the referece heading and actual heading
+  int dispAngle = Bearing - HEADING;          // angle of displacement from heading and reference
+  while(dispAngle<0) 
+    dispAngle += 360;
+  while(dispAngle >360)
+    dispAngle -= 360;  
+
+  //left:0 right:180 neutral: 90
+  //dispAngle 0->170  ->   0 angle = Left(0) servo, 180 angle = Neutral(90)
+  //dispAngle 190->360  -> 180 angle = Neutral(90),  360 angle = Right(180)
+  STEER_ANGLE = dispAngle / 2;
 }
 
 void CalculateDistance() {
