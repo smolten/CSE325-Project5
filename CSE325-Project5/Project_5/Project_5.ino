@@ -23,8 +23,8 @@ float HEADING = 0;  // heading
 boolean usingInterrupt = false;
 int carSpeedPin = 2;      // pin for DC motor (PWM for motor driver)
 float errorHeadingRef = 0;        // error
-long int lat;  // GPS latitude in degree decimal multiplied by 100000
-long int lon;  // GPS latitude in degree decimal multiplied by 100000
+long int lat = 0;  // GPS latitude in degree decimal multiplied by 100000
+long int lon= 0;  // GPS latitude in degree decimal multiplied by 100000
 long int latDestination = 0;//33.423933 * 100000;     // reference destination
 long int lonDestination = 0;//-111.939585 * 100000;   // reference destination
 long int diff_lat = 0;
@@ -33,8 +33,17 @@ float Bearing = 0;                // bearing angle to destination
 int off_angle = 0;
 int localkey = 0;                 // variable for keypad
 
+
+//Tempe Boundaries
+int LAT_MIN = 3341510;
+int LAT_MAX = 3342310;
+
+int LON_MIN = -11193860;
+int LON_MAX = -11192670;
+
+
 void setup() {
-  myservo.attach(44);     // servo is connected to pin 44
+  myservo.attach(48);     // servo is connected to pin 48
   lcd.begin( 16, 2 );     // LCD type is 16x2 (col & row)
   Serial.begin(9600);     // serial for monitoring
   Serial.println("Orientation Sensor Calibration"); Serial.println("");
@@ -53,8 +62,21 @@ void setup() {
     lcd.print("to save dest.");
     delay(100);               // delay to make display visible
   }
+
+  //while( lon == 0 || lat == 0) 
+  {
+    ReadGPS();
+    delay(1000);  //wait for GPS fix before setting destination
+    lcd.clear();
+    lcd.print("Waiting for GPS");
+    lcd.setCursor(0, 1);
+    lcd.print("lat:");lcd.print(lat,5);
+    lcd.print("lon:");lcd.print(lon,5);
+  Serial.println(lat);
+  Serial.println(lon);
+  Serial.println();
+  }
   
-  ReadGPS();
   latDestination = lat;     // saving the destiantion point
   lonDestination = lon;     // saving the destiantion point
   localkey = 0;
@@ -121,9 +143,6 @@ ISR(TIMER4_OVF_vect) { // This function will be called every 1 second
   TCNT4  = 336; //   re-initialize timer4's value
   ReadGPS();    //   read GPS data
   
-  //lcd.clear();
-  //lcd.print("angle: ");
-  //lcd.print(off_angle);
 }
 
 ISR(TIMER1_OVF_vect) {        // This function will be called every 0.1 second
@@ -142,20 +161,36 @@ void ReadGPS() {
       if (GPS.newNMEAreceived())
           GPS.parse(GPS.lastNMEA()); //Parse GPS Sentences
           
-      if (GPS.fix) { //if at least five fixed satellites are found
+      if (GPS.fix) 
+     { //if at least five fixed satellites are found
+          //Update latitude and longitude values
            float raw_lat = GPS.latitude; 
-           long long_lat = (long)(raw_lat * 100.0);
+           long int long_lat = (long)(raw_lat * 100.0);
            float lat_minutes = (float)(long_lat % 10000) / 100; // get the lower 4 digits of the raw data (which is the minutes)
-           long lat_degrees = (long)(long_lat / 10000);
-           int tmp_lat = (lat_degrees + (lat_minutes / 60)) * 100000;
-           if (tmp_lat != 0) { lat = tmp_lat; }
+           long int lat_degrees = (long)(long_lat / 10000);
+           long int tmp_lat = (lat_degrees + (lat_minutes / 60)) * 100000;
+           //if (tmp_lat != 0)
+           //if (tmp_lat > LAT_MIN && tmp_lat < LAT_MAX) 
+           { lat = tmp_lat; }
 
            float raw_lon = GPS.longitude;
-           long long_lon = (long)(raw_lon * 100.0);
+           long int long_lon = (long)(raw_lon * 100.0);
            float lon_minutes = (float)(long_lon % 10000) / 100; // get the lower 4 digits of the raw data (which is the minutes)
-           long lon_degrees = (long)(long_lon / 10000);
-           int tmp_lon = (lon_degrees + (lon_minutes / 60)) * 100000;
-           if (tmp_lon != 0) { lon = tmp_lon; }
+           long int lon_degrees = (long)(long_lon / 10000);
+           long int tmp_lon = -(lon_degrees + (lon_minutes / 60)) * 100000;
+           //if (tmp_lon != 0)
+           //if (tmp_lon > LON_MIN && tmp_lon < LON_MAX) 
+           { lon = tmp_lon; }
+
+           if (latDestination == 0) {latDestination = lat;}
+           if (lonDestination == 0) {lonDestination = lon;}
+
+           
+          Serial.println("Have fix");
+    Serial.print("tmplat:");Serial.println(tmp_lat); //lat and lon stay 0
+    Serial.print("tmplon:");Serial.println(tmp_lon);
+    Serial.print("lat:");Serial.println(lat); //lat and lon stay 0
+    Serial.print("lon:");Serial.println(lon);
       } 
 
 }
@@ -209,6 +244,11 @@ void printLocationOnLCD() {
   lcd.setCursor(0, 1);    // new line
   lcd.print("lon diff");
   lcd.print(diff_lon);
+
+  
+  //Serial.println(lat);
+  //Serial.println(lon);
+  //Serial.println();
 }
 
 void printDistanceOnLCD() {
