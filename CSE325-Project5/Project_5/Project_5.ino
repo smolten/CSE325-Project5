@@ -65,18 +65,6 @@ void setup() {
   }
   
     ReadGPS();
-    lcd.clear();
-    lcd.print("Waiting for GPS");
-    lcd.setCursor(0, 1);
-    lcd.print("lat:");lcd.print(lat,5);
-    lcd.print("lon:");lcd.print(lon,5);
-    Serial.println(lat);
-    Serial.println(lon);
-    Serial.println();
-  
-  
-    latDestination = lat;     // saving the destiantion point
-    lonDestination = lon;     // saving the destiantion point
     localkey = 0;
     
   while (localkey != 1) {   // wait for select button2
@@ -89,7 +77,7 @@ void setup() {
   }
 
 
-  byte c_data[22] = {0, 0, 0, 0, 0, 0, 211, 3, 117, 4, 55, 5, 255, 255, 255, 255, 255, 255, 232, 3, 21, 3};
+  byte c_data[22] = {255, 255, 224, 255, 9, 0, 209, 255, 106, 255, 211, 1, 254, 255, 255, 255, 255, 255, 232, 3, 53, 3};
   bno.setCalibData(c_data);                                                                                       // SET CALIBRATION DATA
   bno.setExtCrystalUse(true);
   // set timer interrupts
@@ -141,7 +129,6 @@ ISR(TIMER4_OVF_vect) { // This function will be called every 1 second
   sei();        //   set interrupt flag // don't change this
   TCNT4  = 336; //   re-initialize timer4's value
   ReadGPS();    //   read GPS data
-  
 }
 
 ISR(TIMER1_OVF_vect) {        // This function will be called every 0.1 second
@@ -161,37 +148,59 @@ void ReadGPS() {
           GPS.parse(GPS.lastNMEA()); //Parse GPS Sentences
           
       if (GPS.fix) 
-      {    //if at least five fixed satellites are found
-          lat = (long int) GPS.latitudeDegrees * 100000; 
-          lon = (long int) GPS.longitudeDegrees * 100000;
-      } 
+      {   
+          //Update latitude and longitude values
+           float raw_lat = GPS.latitude; 
+           long int long_lat = (long)(raw_lat * 100.0);
+           float lat_minutes = (float)(long_lat % 10000) / 100; 
+           long int lat_degrees = (long)(long_lat / 10000);
+           long int tmp_lat = (lat_degrees + (lat_minutes / 60)) * 100000;
+           //if (tmp_lat != 0)
+           //if (tmp_lat > LAT_MIN && tmp_lat < LAT_MAX) 
+           { lat = tmp_lat; }
 
+           float raw_lon = GPS.longitude;
+           long int long_lon = (long)(raw_lon * 100.0);
+           float lon_minutes = (float)(long_lon % 10000) / 100; // get the lower 4 digits of the raw data (which is the minutes)
+           long int lon_degrees = (long)(long_lon / 10000);
+           long int tmp_lon = -(lon_degrees + (lon_minutes / 60)) * 100000;
+           //if (tmp_lon != 0)
+           //if (tmp_lon > LON_MIN && tmp_lon < LON_MAX) 2
+           { lon = tmp_lon; }
+
+           if (latDestination == 0) {latDestination = lat;}
+           if (lonDestination == 0) {lonDestination = lon;}
+      }
 }
 
 void ReadHeading() { // Output: HEADING
     // read Heading angle
     imu::Vector<3> eulVect = bno.getVector(Adafruit_BNO055::VECTOR_EULER);      // Euler Vector
-    HEADING = (eulVect.x() + 20);  
+    HEADING = (eulVect.x() - 10.32); 
+    while(HEADING < 0) 
+      HEADING += 360;
+    while(HEADING >= 360)
+      HEADING -= 360;  
 }
 
 void CalculateBearing() {
   // calculate bearing angle based on current and destination locations (GPS coordinates)
     diff_lat = latDestination - lat;
     diff_lon = lonDestination - lon;
-    Bearing = atan2(diff_lat, diff_lon);
+    Bearing = atan2(diff_lon, diff_lat); //lat, lon
 }
 
 void CalculateSteering() { // Input: HEADING // Output: STEERANGLE// Calculate the steering angle according to the referece heading and actual heading
     int dispAngle = Bearing - HEADING;          // angle of displacement from heading and reference
-    while(dispAngle<0) 
+    while(dispAngle < 0) 
       dispAngle += 360;
-    while(dispAngle >360)
+    while(dispAngle >= 360)
       dispAngle -= 360;  
   
     off_angle = dispAngle;
   
     //left:0 right:180 neutral: 90
-    //dispAngle 0->170  ->   0 angle = Left(0) servo, 180 angle = Neutral(90)
+    //dispAngle 0->170  ->   0 angle = Left(0) servo, 180  angle = Neutral(90)
     //dispAngle 190->360  -> 180 angle = Neutral(90),  360 angle = Right(180)
     STEER_ANGLE = dispAngle / 2;
 }
@@ -227,14 +236,17 @@ void printLocationOnLCD() {
 }
 
 void printDistanceOnLCD() {
+  lcd.clear();
   lcd.print("Dist ");
+  lcd.setCursor(0, 1);    // new line
   lcd.print(distanceRemaining);
 }
 
 void loop() {
   lcd.clear();    // clear the LCD
   // You can print anything on the LCD to debug your program!!!
-  //printHeadingOnLCD();
-  printLocationOnLCD();
+  printHeadingOnLCD();
+  //printLocationOnLCD();
   delay(100);
 }
+
