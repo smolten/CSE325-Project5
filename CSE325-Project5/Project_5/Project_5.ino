@@ -30,6 +30,7 @@ long int lonDestination = 0;//-111.939585 * 100000;   // reference destination
 long int diff_lat = 0;
 long int diff_lon = 0;
 float Bearing = 0;                // bearing angle to destination
+long int distanceRemaining = 0;
 int off_angle = 0;
 int localkey = 0;                 // variable for keypad
 
@@ -160,55 +161,15 @@ void ReadGPS() {
           GPS.parse(GPS.lastNMEA()); //Parse GPS Sentences
           
       if (GPS.fix) 
-     { //if at least five fixed satellites are found
-         lat = (long int) GPS.latitudeDegrees * 100000; 
-         lon = (long int) GPS.longitudeDegrees * 100000;
-         
-      /*
-          //Update latitude and longitude values
-           float lat = GPS.latitudeDegrees; 
-           
-          //Coversion from Decimal to Long int for parsing
-           long int long_lat = (long)(raw_lat * 100.0);
-           
-           // get the lower 4 digits of the raw data (which is the minutes)
-           float lat_minutes = (float)(long_lat % 10000) / 100; 
-
-           //get degrees
-           long int lat_degrees = (long)(long_lat / 10000);
-
-           //Final Value
-           long int tmp_lat = (lat_degrees + (lat_minutes / 60));
-           //if (tmp_lat != 0)
-           //if (tmp_lat > LAT_MIN && tmp_lat < LAT_MAX) 
-           { lat = tmp_lat; }
-
-           float raw_lon = GPS.longitude;
-           long int long_lon = (long)(raw_lon * 100.0);
-           float lon_minutes = (float)(long_lon % 10000) / 100; // get the lower 4 digits of the raw data (which is the minutes)
-           long int lon_degrees = (long)(long_lon / 10000);
-           long int tmp_lon = -(lon_degrees + (lon_minutes / 60)) * 100000;
-           //if (tmp_lon != 0)
-           //if (tmp_lon > LON_MIN && tmp_lon < LON_MAX) 
-           { lon = tmp_lon; }
-
-           if (latDestination == 0) {latDestination = lat;}
-           if (lonDestination == 0) {lonDestination = lon;}
-
-           
-          Serial.println("Have fix");
-          Serial.print("tmplat:");Serial.println(tmp_lat); //lat and lon stay 0
-          Serial.print("tmplon:");Serial.println(tmp_lon);
-          Serial.print("lat:");Serial.println(lat); //lat and lon stay 0
-          Serial.print("lon:");Serial.println(lon);
-
-    */
+      {    //if at least five fixed satellites are found
+          lat = (long int) GPS.latitudeDegrees * 100000; 
+          lon = (long int) GPS.longitudeDegrees * 100000;
       } 
 
 }
 
 void ReadHeading() { // Output: HEADING
-  // read Heading angle
+    // read Heading angle
     imu::Vector<3> eulVect = bno.getVector(Adafruit_BNO055::VECTOR_EULER);      // Euler Vector
     HEADING = (eulVect.x() + 20);  
 }
@@ -237,8 +198,7 @@ void CalculateSteering() { // Input: HEADING // Output: STEERANGLE// Calculate t
 
 void CalculateDistance() {
   // calculate distance to destination based on current and destination coordinates
-  long distancebig = sqrt(diff_lat*diff_lat + diff_lon*diff_lon);
-  
+  distanceRemaining = sqrt(diff_lat*diff_lat + diff_lon*diff_lon);
 }
 
 void Actuate() {
@@ -247,7 +207,8 @@ void Actuate() {
 }
 
 void printHeadingOnLCD() {
-
+  lcd.print("head ");
+  lcd.print(HEADING);
 }
 
 void printLocationOnLCD() {
@@ -256,15 +217,18 @@ void printLocationOnLCD() {
   lcd.setCursor(0, 1);    // new line
   lcd.print("lon diff");
   lcd.print(diff_lon);
-
   
-  //Serial.println(lat);
-  //Serial.println(lon);
-  //Serial.println();
+  /*lcd.print("lat ");
+  Serial.println(lat);
+  Serial.print("lon ");
+  Serial.println(lon);
+  Serial.println();
+  */
 }
 
 void printDistanceOnLCD() {
-
+  lcd.print("Dist ");
+  lcd.print(distanceRemaining);
 }
 
 void loop() {
