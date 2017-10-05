@@ -24,7 +24,7 @@ boolean usingInterrupt = false;
 int carSpeedPin = 2;      // pin for DC motor (PWM for motor driver)
 float errorHeadingRef = 0;        // error
 long int lat = 0;  // GPS latitude in degree decimal multiplied by 100000, to meters
-long int lon= 0;  // GPS latitude in degree decimal multiplied by 100000
+long int lon = 0;  // GPS latitude in degree decimal multiplied by 100000
 long int latDestination = 0;//33.423933 * 100000;     // reference destination
 long int lonDestination = 0;//-111.939585 * 100000;   // reference destination
 long int diff_lat = 0;
@@ -35,11 +35,11 @@ int localkey = 0;                 // variable for keypad
 
 
 //Tempe Boundaries
-int LAT_MIN = 3341510;
-int LAT_MAX = 3342310;
+long int LAT_MIN = 3341510;
+long int LAT_MAX = 3342310;
 
-int LON_MIN = -11193860;
-int LON_MAX = -11192670;
+long int LON_MIN = -11193860;
+long int LON_MAX = -11192670;
 
 
 void setup() {
