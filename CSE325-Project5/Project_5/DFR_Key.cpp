@@ -59,3 +59,6 @@ void DFR_Key::setRate(int rate)
   _refreshRate = rate;
 }
 
+
+
+
