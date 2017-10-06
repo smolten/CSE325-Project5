@@ -148,22 +148,22 @@ void useInterrupt(boolean v) {
   }
 }
 
-bool startDriving = false;
+bool startDrivingBool = false;
 int selectKey = 0;
 ISR(TIMER4_OVF_vect) { // This function will be called every 1 second
   sei();        //   set interrupt flag // don't change this
   TCNT4  = 336; //   re-initialize timer4's value
   ReadGPS();    //   read GPS data
 
-  if (!startDriving && (lonDestination != 0 && latDestination != 0) ) 
+  if (!startDrivingBool && (lonDestination != 0 && latDestination != 0) ) 
   {
-     if (localkey != 1) {   // wait for select button2
+     if (selectKey != 1) {   // wait for select button2
         lcd.clear();
-        localkey = keypad.getKey();
+        selectKey = keypad.getKey();
         lcd.print("Press Select");
         lcd.setCursor(0, 1);
         lcd.print("to drive!");
-      } else { startDriving = true;}
+      } else { startDrivingBool = true;}
   }
 }
 
@@ -172,7 +172,7 @@ ISR(TIMER1_OVF_vect) {        // This function will be called every 0.1 second
   TCNT1  = 59016;         // reinitialize the timer1's value
 
   //Only drive if press drive button has been hit
-  if (startDriving) {
+  if (startDrivingBool) {
     ReadHeading();          // read heading
     CalculateBearing();     // calc bearing
     CalculateSteering();    // calc steering
