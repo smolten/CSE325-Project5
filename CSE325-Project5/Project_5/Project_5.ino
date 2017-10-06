@@ -80,7 +80,7 @@ void setup() {
     //lcd.clear();
     //lcd.print(gps_char);
     //lcd.print("Waiting on GPS...");
-    ReadGPS();
+    //ReadGPS();
 //    while(lonDestination == 0 || latDestination == 0) {
 //      ReadGPS();
 //      Serial.print(gps_char);
@@ -149,21 +149,30 @@ void useInterrupt(boolean v) {
 }
 
 bool startDrivingBool = false;
+bool stopDrivingBool = false;
 int selectKey = 0;
 ISR(TIMER4_OVF_vect) { // This function will be called every 1 second
   sei();        //   set interrupt flag // don't change this
   TCNT4  = 336; //   re-initialize timer4's value
   ReadGPS();    //   read GPS data
 
-  if (!startDrivingBool && (lonDestination != 0 && latDestination != 0) ) 
+  if ((lonDestination == 0 || latDestination == 0)) {
+        lcd.clear();
+        lcd.print(gps_char);
+        lcd.print("Waiting on GPS...");
+  }
+  else if (! startDrivingBool && ! stopDrivingBool) 
   {
-     if (selectKey != 1) {   // wait for select button2
+     while (selectKey != 1) {   // wait for select button2
         lcd.clear();
         selectKey = keypad.getKey();
         lcd.print("Press Select");
         lcd.setCursor(0, 1);
         lcd.print("to drive!");
-      } else { startDrivingBool = true;}
+        delay(100);
+      }
+      Serial.print("Reading key...");
+      { startDrivingBool = true;}
   }
 }
 
@@ -222,15 +231,10 @@ void ReadGPS() {
       gps_char = (gps_toggle) ? '-' : '/';  //GPS read a non-zero lat and lon
       if ( tmp_lat == 0 || tmp_lon == 0 ) { (gps_toggle) ? 'o' : 'O'; } //GPS read a zero lat or lon
       if (! gps_read) { (gps_toggle) ? '?' : '!'; } //GPS did not read at all
-      
-      Serial.print(gps_char);
-      Serial.print(latDestination);
-      Serial.println(lonDestination);
-      if (! startDrivingBool) {
-        lcd.clear();
-        lcd.print(gps_char);
-        lcd.print("Waiting on GPS...");
-      }
+
+      Serial.println(gps_char);
+      Serial.println(lat);
+      Serial.println(lon);
 }
 
 void ReadHeading() { // Output: HEADING
@@ -291,10 +295,13 @@ void stopDriving() {
   analogWrite(carSpeedPin, 0);
   myservo.write(90);
   startDrivingBool = false;
+  stopDrivingBool = true;
 }
 
 void printHeadingOnLCD() {
   if (! startDrivingBool) {return;}
+
+  lcd.clear();
   
   lcd.print("h ");     
   lcd.print(HEADING);
@@ -335,12 +342,12 @@ void printDistanceOnLCD() {
 
 void loop() {
 
-  lcd.clear();    // clear the LCD
+  //lcd.clear();    // clear the LCD
   // You can print anything on the LCD to debug your program!!!
   printHeadingOnLCD();
   //printLocationOnLCD();
     
-  delay(1000);
+  delay(100);
 }
 
 
