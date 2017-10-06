@@ -22,7 +22,7 @@ int STEER_ANGLE = 90;       // servo initial angle (range is 0:180)
 float HEADING = 0;  // heading
 boolean usingInterrupt = false;
 int carSpeedPin = 2;      // pin for DC motor (PWM for motor driver)
-int carSpeed = 30;
+int carSpeed = 33;
 float errorHeadingRef = 0;        // error
 long int lat = 0;  // GPS latitude in degree decimal multiplied by 100000, to meters
 long int lon = 0;  // GPS latitude in degree decimal multiplied by 100000
@@ -77,7 +77,7 @@ void setup() {
   GPS.sendCommand(PGCMD_ANTENNA);
 
    
-    lcd.clear();
+    //lcd.clear();
     //lcd.print(gps_char);
     //lcd.print("Waiting on GPS...");
     ReadGPS();
@@ -226,6 +226,11 @@ void ReadGPS() {
       Serial.print(gps_char);
       Serial.print(latDestination);
       Serial.println(lonDestination);
+      if (! startDrivingBool) {
+        lcd.clear();
+        lcd.print(gps_char);
+        lcd.print("Waiting on GPS...");
+      }
 }
 
 void ReadHeading() { // Output: HEADING
@@ -285,9 +290,12 @@ void startDriving(){
 void stopDriving() {
   analogWrite(carSpeedPin, 0);
   myservo.write(90);
+  startDrivingBool = false;
 }
 
 void printHeadingOnLCD() {
+  if (! startDrivingBool) {return;}
+  
   lcd.print("h ");     
   lcd.print(HEADING);
 
