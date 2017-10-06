@@ -147,7 +147,7 @@ void ReadGPS() {
       if (GPS.newNMEAreceived())
           GPS.parse(GPS.lastNMEA()); //Parse GPS Sentences
           
-      if (GPS.fix) 
+      if (GPS.satellites >= 5) 
       {   
           //Update latitude and longitude values
            float raw_lat = GPS.latitude; 
@@ -168,8 +168,8 @@ void ReadGPS() {
            //if (tmp_lon > LON_MIN && tmp_lon < LON_MAX) 2
            { lon = tmp_lon; }
 
-           if (latDestination == 0) {latDestination = lat;}
-           if (lonDestination == 0) {lonDestination = lon;}
+           if (latDestination == 0 && lat != 0 && lon !=0) {latDestination = lat;}     // set initial destination values
+           if (lonDestination == 0 && lon !=0 && lat != 0) {lonDestination = lon;}
       }
 }
 
@@ -191,18 +191,18 @@ void CalculateBearing() {
 }
 
 void CalculateSteering() { // Input: HEADING // Output: STEERANGLE// Calculate the steering angle according to the referece heading and actual heading
-    int dispAngle = Bearing - HEADING;          // angle of displacement from heading and reference
+    int dispAngle = (Bearing + HEADING) - 180;          // angle of displacement from heading and reference
     while(dispAngle < 0) 
       dispAngle += 360;
     while(dispAngle >= 360)
-      dispAngle -= 360;  
-  
-    off_angle = dispAngle;
+      dispAngle -= 360; 
+
   
     //left:0 right:180 neutral: 90
     //dispAngle 0->170  ->   0 angle = Left(0) servo, 180  angle = Neutral(90)
     //dispAngle 190->360  -> 180 angle = Neutral(90),  360 angle = Right(180)
-    STEER_ANGLE = dispAngle / 2;
+    
+    STEER_ANGLE = dispAngle / 2;  // dynamically set the steering angle
 }
 
 void CalculateDistance() {
@@ -216,16 +216,19 @@ void Actuate() {
 }
 
 void printHeadingOnLCD() {
-  lcd.print("head ");
+  lcd.print("head ");     
   lcd.print(HEADING);
+  lcd.setCursor(0, 1);    // new line
+  lcd.print("bear ");
+  lcd.print(Bearing);
 }
 
 void printLocationOnLCD() {
-  lcd.print("lat diff");
-  lcd.print(diff_lat);
+  lcd.print("lat");
+  lcd.print(lat);
   lcd.setCursor(0, 1);    // new line
-  lcd.print("lon diff");
-  lcd.print(diff_lon);
+  lcd.print("lon");
+  lcd.print(lon);
   
   /*lcd.print("lat ");
   Serial.println(lat);
