@@ -238,6 +238,8 @@ void CalculateSteering() { // Input: HEADING // Output: STEERANGLE// Calculate t
 void CalculateDistance() {
   // calculate distance to destination based on current and destination coordinates
   distanceRemaining = sqrt(diff_lat*diff_lat + diff_lon*diff_lon);
+  if (distanceRemaining <= 5)
+    stopDriving();
 }
 
 void Actuate() {
@@ -250,6 +252,7 @@ void startDriving(){
 }
 void stopDriving() {
   analogWrite(carSpeedPin, 0);
+  myservo.write(90);
 }
 
 void printHeadingOnLCD() {
