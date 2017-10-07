@@ -22,12 +22,13 @@ int STEER_ANGLE = 90;       // servo initial angle (range is 0:180)
 float HEADING = 0;  // heading
 boolean usingInterrupt = false;
 int carSpeedPin = 2;      // pin for DC motor (PWM for motor driver)
-int carSpeed = 33;
+int carSpeed = 38;
 float errorHeadingRef = 0;        // error
 long int lat = 0;  // GPS latitude in degree decimal multiplied by 100000, to meters
 long int lon = 0;  // GPS latitude in degree decimal multiplied by 100000
 long int latDestination = 0;//33.423933 * 100000;     // reference destination
 long int lonDestination = 0;//-111.939585 * 100000;   // reference destination
+bool destinationSet = false;
 long int diff_lat = 0;
 long int diff_lon = 0;
 float Bearing = 0;                // bearing angle to destination
@@ -40,6 +41,8 @@ int localkey = 0;                 // variable for keypad
 int dispAngle = 0;
 int i = 0;  // get rid of me
 
+
+bool isDriving = false;
 
 //Tempe Boundaries
 long int LAT_MIN = 3341510;
@@ -76,31 +79,6 @@ void setup() {
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate // it's more stable than 10Hz
   GPS.sendCommand(PGCMD_ANTENNA);
 
-   
-    //lcd.clear();
-    //lcd.print(gps_char);
-    //lcd.print("Waiting on GPS...");
-    ReadGPS();
-//    while(lonDestination == 0 || latDestination == 0) {
-//      ReadGPS();
-//      Serial.print(gps_char);
-//      Serial.print(latDestination);
-//      Serial.println(lonDestination);
-//      delay(1000);
-//    }
-    //Serial.print("fuck");Serial.print(latDestination);
-    //Serial.print("shit");Serial.println(lonDestination);
-
-//    localkey = 0;
-//while (localkey != 1) {   // wait for select button2
-//    lcd.clear();
-//    localkey = keypad.getKey();
-//    lcd.print("Press Select");
-//    lcd.setCursor(0, 1);
-//    lcd.print("to drive!");
-//    delay(100);             // delay to make display visible
-//  }
-
   byte c_data[22] = {255, 255, 224, 255, 9, 0, 209, 255, 106, 255, 211, 1, 254, 255, 255, 255, 255, 255, 232, 3, 53, 3};
   bno.setCalibData(c_data);                                                                                       // SET CALIBRATION DATA
   bno.setExtCrystalUse(true);
@@ -122,8 +100,34 @@ void setup() {
 
 
   useInterrupt(true);
-      
 
+    while(lonDestination == 0 || latDestination == 0) {
+      ReadGPS();
+      lcd.clear();
+      lcd.print(gps_char);
+      lcd.print("Waiting on GPS...");
+      Serial.print(gps_char);
+      Serial.print(latDestination);
+      Serial.println(lonDestination);
+      delay(1000);
+    }
+    destinationSet = true;
+    localkey = 0;
+    
+  while (localkey != 1) {   // wait for select button2
+    lcd.clear();
+    localkey = keypad.getKey();
+    lcd.print("Press Select");
+    lcd.setCursor(0, 1);
+    lcd.print("to drive!");
+
+
+    lcd.print(" d ");
+    lcd.print(distanceRemaining);
+    
+    delay(100);             // delay to make display visible
+  }
+  isDriving = true;
 }
 
 SIGNAL(TIMER0_COMPA_vect) { // leave this function unchanged//
@@ -148,35 +152,25 @@ void useInterrupt(boolean v) {
   }
 }
 
-bool startDrivingBool = false;
-int selectKey = 0;
 ISR(TIMER4_OVF_vect) { // This function will be called every 1 second
   sei();        //   set interrupt flag // don't change this
   TCNT4  = 336; //   re-initialize timer4's value
   ReadGPS();    //   read GPS data
-
-  if (!startDrivingBool && (lonDestination != 0 && latDestination != 0) ) 
-  {
-     if (selectKey != 1) {   // wait for select button2
-        lcd.clear();
-        selectKey = keypad.getKey();
-        lcd.print("Press Select");
-        lcd.setCursor(0, 1);
-        lcd.print("to drive!");
-      } else { startDrivingBool = true;}
-  }
 }
 
 ISR(TIMER1_OVF_vect) {        // This function will be called every 0.1 second
   sei();                  // set interrupt flag // don't change this
   TCNT1  = 59016;         // reinitialize the timer1's value
+  
+  ReadHeading();          // read heading
+  CalculateBearing();     // calc bearing
+  distanceRemaining = sqrt(diff_lat*diff_lat + diff_lon*diff_lon);
 
-  //Only drive if press drive button has been hit
-  if (startDrivingBool) {
-    ReadHeading();          // read heading
-    CalculateBearing();     // calc bearing
-    CalculateSteering();    // calc steering
+  
+  if ( isDriving ) {
     CalculateDistance();    // calc distance
+    CalculateSteering();    // calc steering
+    printHeadingOnLCD();
     Actuate();              // Actuate
   }
 }
@@ -186,21 +180,21 @@ void ReadGPS() {
 
   gps_read = GPS.fix;// GPS.satellites >= 5; Changed because GPS was NEVER reading
   gps_toggle = ! gps_toggle;
+  gps_char = (gps_toggle) ? '-' : '/';
+  if (! gps_read) { (gps_toggle) ? '!' : '*'; }
   
   // read from GPS module and update the current position
       if (GPS.newNMEAreceived())
           GPS.parse(GPS.lastNMEA()); //Parse GPS Sentences
-
-      long int tmp_lon = 0;
-      long int tmp_lat = 0;
-      if (gps_read) 
+          
+      if (GPS.fix) 
       {   
           //Update latitude and longitude values
            float raw_lat = GPS.latitude; 
            long int long_lat = (long)(raw_lat * 100.0);
            float lat_minutes = (float)(long_lat % 10000) / 100; 
            long int lat_degrees = (long)(long_lat / 10000);
-           tmp_lat = (lat_degrees + (lat_minutes / 60)) * 100000;
+           long int tmp_lat = (lat_degrees + (lat_minutes / 60)) * 100000;
            //if (tmp_lat > LAT_MIN && tmp_lat < LAT_MAX) 
            if (tmp_lat != 0)
            { lat = tmp_lat; }
@@ -209,28 +203,21 @@ void ReadGPS() {
            long int long_lon = (long)(raw_lon * 100.0);
            float lon_minutes = (float)(long_lon % 10000) / 100; // get the lower 4 digits of the raw data (which is the minutes)
            long int lon_degrees = (long)(long_lon / 10000);
-           tmp_lon = -(lon_degrees + (lon_minutes / 60)) * 100000;
+           long int tmp_lon = -(lon_degrees + (lon_minutes / 60)) * 100000;
            //if (tmp_lon > LON_MIN && tmp_lon < LON_MAX) 2
            if (tmp_lon != 0)
            { lon = tmp_lon; }
-           
-           if (latDestination == 0 ) {latDestination = lat;}     // set initial destination values
-           if (lonDestination == 0 ) {lonDestination = lon;}
-      }
 
-      
-      gps_char = (gps_toggle) ? '-' : '/';  //GPS read a non-zero lat and lon
-      if ( tmp_lat == 0 || tmp_lon == 0 ) { (gps_toggle) ? 'o' : 'O'; } //GPS read a zero lat or lon
-      if (! gps_read) { (gps_toggle) ? '?' : '!'; } //GPS did not read at all
+            if (! destinationSet)
+            {
+              if (latDestination == 0 ) {latDestination = lat;}     // set initial destination values
+              if (lonDestination == 0 ) {lonDestination = lon;}
+            }
+      }
       
       Serial.print(gps_char);
       Serial.print(latDestination);
       Serial.println(lonDestination);
-      if (! startDrivingBool) {
-        lcd.clear();
-        lcd.print(gps_char);
-        lcd.print("Waiting on GPS...");
-      }
 }
 
 void ReadHeading() { // Output: HEADING
@@ -279,25 +266,30 @@ void CalculateDistance() {
     startDriving();
 }
 
+bool finishedDriving = false;
 void Actuate() {
   // set car's direction and speed
-  myservo.write(STEER_ANGLE); 
+  if (finishedDriving) {return;}
+  myservo.write(STEER_ANGLE);
 }
 
 void startDriving(){
+  isDriving = true;
   analogWrite(carSpeedPin, carSpeed);
 }
 void stopDriving() {
+  finishedDriving = true;
   analogWrite(carSpeedPin, 0);
   myservo.write(90);
-  startDrivingBool = false;
 }
 
 void printHeadingOnLCD() {
-  if (! startDrivingBool) {return;}
+  lcd.clear();
   
-  lcd.print("h ");     
-  lcd.print(HEADING);
+  lcd.print("h ");   
+  float printHeading = HEADING + 180;
+  if (printHeading >= 360) {printHeading -= 360;}
+  lcd.print(printHeading);
 
   lcd.print("a ");
   lcd.print(dispAngle);
@@ -335,12 +327,11 @@ void printDistanceOnLCD() {
 
 void loop() {
 
-  lcd.clear();    // clear the LCD
+  //lcd.clear();    // clear the LCD
   // You can print anything on the LCD to debug your program!!!
-  printHeadingOnLCD();
+  //printHeadingOnLCD();
   //printLocationOnLCD();
-    
-  delay(1000);
+  //delay(100);
 }
 
 
