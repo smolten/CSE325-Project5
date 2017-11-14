@@ -162,9 +162,9 @@ ISR(TIMER1_OVF_vect) {        // This function will be called every 0.1 second
   sei();                  // set interrupt flag // don't change this
   TCNT1  = 59016;         // reinitialize the timer1's value
   
-  ReadHeading();          // read heading
-  CalculateBearing();     // calc bearing
-  distanceRemaining = sqrt(diff_lat*diff_lat + diff_lon*diff_lon);
+  //ReadHeading();          // read heading
+  //CalculateBearing();     // calc bearing
+  //distanceRemaining = sqrt(diff_lat*diff_lat + diff_lon*diff_lon);
 
   
   if ( isDriving ) {
@@ -187,8 +187,9 @@ void ReadGPS() {
       if (GPS.newNMEAreceived())
           GPS.parse(GPS.lastNMEA()); //Parse GPS Sentences
           
-      if (GPS.fix) 
+      if (GPS.satellites >= 5) 
       {   
+        
           //Update latitude and longitude values
            float raw_lat = GPS.latitude; 
            long int long_lat = (long)(raw_lat * 100.0);
@@ -213,11 +214,20 @@ void ReadGPS() {
               if (latDestination == 0 ) {latDestination = lat;}     // set initial destination values
               if (lonDestination == 0 ) {lonDestination = lon;}
             }
+            
+
+        
+
+
+        Serial.print(tmp_lon);
+        Serial.print(" , ");
+        Serial.println(tmp_lat);
+        
       }
       
-      Serial.print(gps_char);
-      Serial.print(latDestination);
-      Serial.println(lonDestination);
+      //Serial.print(gps_char);
+      //Serial.print(latDestination);
+      //Serial.println(lonDestination);
 }
 
 void ReadHeading() { // Output: HEADING
